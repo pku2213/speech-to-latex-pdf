@@ -1,0 +1,13 @@
+speech-to-latex-pdf Skill
+Copyright (c) 2026 Claude Code
+
+This skill is Proprietary software. All rights reserved.
+
+This skill and its accompanying scripts and templates are provided for use
+with Claude Code only. Redistribution, modification, or use outside of
+Claude Code is not permitted without explicit authorization.
+
+Third-party components used by this skill:
+- openai-whisper: MIT License (https://github.com/openai/whisper)
+- FFmpeg: LGPL/GPL (https://ffmpeg.org/legal.html)
+- TeX Live: Various free software licenses (https://tug.org/texlive/)
