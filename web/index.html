@@ -1,0 +1,807 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>audio2pdf · 音视频转写</title>
+  <style>
+    :root {
+      --canvas: #edf0f2;
+      --surface: #ffffff;
+      --surface-subtle: #f7f8f9;
+      --ink: #172235;
+      --muted: #687386;
+      --line: #d8dee6;
+      --navy: #183b56;
+      --teal: #176b70;
+      --teal-soft: #e7f2f1;
+      --gold: #b9822e;
+      --gold-soft: #fbf3e5;
+      --green: #37745a;
+      --green-soft: #eaf4ee;
+      --red: #a94646;
+      --red-soft: #f8eaea;
+      --shadow: 0 12px 30px rgba(23, 34, 53, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    html { min-width: 320px; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--canvas);
+      color: var(--ink);
+      font-family: "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+      letter-spacing: 0;
+    }
+
+    button, input, summary { font: inherit; letter-spacing: 0; }
+    button { -webkit-tap-highlight-color: transparent; }
+
+    .topbar {
+      min-height: 74px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .topbar-inner {
+      width: min(1220px, calc(100% - 40px));
+      min-height: 74px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      flex: 0 0 38px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--navy);
+      background: var(--navy);
+      color: #fff;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-family: Georgia, "Songti SC", serif;
+      font-size: 23px;
+      line-height: 1.1;
+      font-weight: 700;
+    }
+
+    .brand p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.2;
+    }
+
+    .status {
+      min-width: 112px;
+      height: 34px;
+      padding: 0 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: var(--surface-subtle);
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .status::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #8993a2;
+    }
+
+    .status.running { color: var(--gold); border-color: #ead8b7; background: var(--gold-soft); }
+    .status.running::before { background: var(--gold); animation: pulse 1.2s ease-in-out infinite; }
+    .status.ok { color: var(--green); border-color: #c8dfd1; background: var(--green-soft); }
+    .status.ok::before { background: var(--green); }
+    .status.err { color: var(--red); border-color: #ebcaca; background: var(--red-soft); }
+    .status.err::before { background: var(--red); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.45; }
+      50% { opacity: 1; }
+    }
+
+    .workspace {
+      width: min(1220px, calc(100% - 40px));
+      margin: 24px auto 32px;
+      display: grid;
+      grid-template-columns: minmax(350px, 430px) minmax(0, 1fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .tool-panel,
+    .progress-panel {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      min-height: 62px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface-subtle);
+    }
+
+    .panel-head h2 {
+      margin: 0;
+      font-size: 17px;
+      line-height: 1.2;
+    }
+
+    .panel-head small { color: var(--muted); font-size: 12px; }
+
+    .form-body { padding: 18px; }
+    .field { margin-bottom: 17px; }
+    .field:last-child { margin-bottom: 0; }
+
+    label {
+      display: block;
+      margin: 0 0 7px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .path-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 76px;
+      gap: 8px;
+    }
+
+    input {
+      width: 100%;
+      height: 42px;
+      min-width: 0;
+      padding: 0 11px;
+      border: 1px solid #cbd3dd;
+      border-radius: 5px;
+      outline: none;
+      background: #fff;
+      color: var(--ink);
+      font-size: 13px;
+      transition: border-color 140ms ease, box-shadow 140ms ease;
+    }
+
+    input:focus {
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px rgba(23, 107, 112, 0.12);
+    }
+
+    input::placeholder { color: #9aa3af; }
+
+    .file-strip {
+      min-height: 58px;
+      margin-top: 9px;
+      padding: 10px 11px;
+      display: grid;
+      grid-template-columns: 36px minmax(0, 1fr);
+      gap: 10px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--teal);
+      background: var(--surface-subtle);
+    }
+
+    .file-type {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      background: var(--teal-soft);
+      color: var(--teal);
+      font-family: Consolas, monospace;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .file-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .file-path {
+      margin-top: 3px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    button {
+      min-height: 40px;
+      padding: 0 14px;
+      border: 1px solid var(--navy);
+      border-radius: 5px;
+      background: var(--navy);
+      color: #fff;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 13px;
+      transition: background 140ms ease, border-color 140ms ease, transform 100ms ease;
+    }
+
+    button:hover:not(:disabled) { background: #24506f; border-color: #24506f; }
+    button:active:not(:disabled) { transform: translateY(1px); }
+    button:focus-visible { outline: 3px solid rgba(23, 107, 112, 0.2); outline-offset: 2px; }
+    button:disabled { cursor: not-allowed; opacity: 0.46; }
+
+    button.secondary {
+      border-color: #cbd3dd;
+      background: #fff;
+      color: var(--navy);
+    }
+
+    button.secondary:hover:not(:disabled) { background: #f1f4f6; border-color: #aeb9c6; }
+    button.primary { background: var(--teal); border-color: var(--teal); }
+    button.primary:hover:not(:disabled) { background: #12585c; border-color: #12585c; }
+
+    details {
+      margin: 4px -18px 0;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: var(--surface-subtle);
+    }
+
+    summary {
+      min-height: 44px;
+      padding: 0 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      list-style: none;
+    }
+
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: "+"; color: var(--teal); font-size: 18px; font-weight: 400; }
+    details[open] summary::after { content: "−"; }
+    .advanced-body { padding: 0 18px 17px; }
+    .advanced-body .field { margin-bottom: 13px; }
+
+    .form-actions {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: 0.8fr 1.2fr;
+      gap: 8px;
+    }
+
+    .progress-panel {
+      min-height: 670px;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+    }
+
+    .steps {
+      min-height: 94px;
+      padding: 15px 18px;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .step {
+      position: relative;
+      min-width: 0;
+      padding: 0 7px;
+      text-align: center;
+      color: #9099a6;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .step:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      top: 13px;
+      left: calc(50% + 14px);
+      right: calc(-50% + 14px);
+      height: 1px;
+      background: var(--line);
+    }
+
+    .step-index {
+      position: relative;
+      z-index: 1;
+      width: 27px;
+      height: 27px;
+      margin: 0 auto 7px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: #fff;
+      font-family: Georgia, serif;
+      font-size: 12px;
+    }
+
+    .step.active { color: var(--teal); }
+    .step.active .step-index { border-color: var(--teal); background: var(--teal-soft); }
+    .step.done { color: var(--green); }
+    .step.done .step-index { border-color: var(--green); background: var(--green); color: #fff; }
+    .step.done:not(:last-child)::after { background: var(--green); }
+
+    .log-wrap {
+      position: relative;
+      min-height: 0;
+      background: #101923;
+    }
+
+    pre {
+      height: 100%;
+      min-height: 410px;
+      max-height: 520px;
+      margin: 0;
+      padding: 18px;
+      overflow: auto;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      color: #d7e1e8;
+      background: #101923;
+      font-family: "Cascadia Mono", Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.65;
+      scrollbar-color: #485868 #101923;
+    }
+
+    pre:empty::before {
+      content: "等待任务";
+      color: #738293;
+    }
+
+    .result-bar {
+      min-height: 64px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-top: 1px solid var(--line);
+      background: var(--surface-subtle);
+    }
+
+    .result-label {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .result-label strong {
+      display: block;
+      max-width: 330px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--ink);
+      font-size: 13px;
+    }
+
+    .result-mark {
+      width: 30px;
+      height: 30px;
+      flex: 0 0 30px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .result-bar.ready .result-mark { border-color: #bfd8c9; background: var(--green-soft); color: var(--green); }
+    .result-actions { display: flex; gap: 7px; }
+
+    .small-button { min-height: 34px; padding: 0 11px; font-size: 12px; }
+
+    @media (max-width: 920px) {
+      .workspace { grid-template-columns: 1fr; }
+      .progress-panel { min-height: 590px; }
+      pre { max-height: 420px; }
+    }
+
+    @media (max-width: 560px) {
+      .topbar-inner, .workspace { width: min(100% - 24px, 1220px); }
+      .topbar-inner { min-height: 86px; align-items: flex-start; padding: 14px 0; }
+      .brand h1 { font-size: 20px; }
+      .status { min-width: 92px; padding: 0 10px; }
+      .workspace { margin-top: 12px; }
+      .path-row { grid-template-columns: minmax(0, 1fr) 68px; }
+      .form-actions { grid-template-columns: 1fr; }
+      .steps { padding: 14px 8px; }
+      .step { padding: 0 2px; font-size: 10px; }
+      .step-index { width: 24px; height: 24px; }
+      .step:not(:last-child)::after { top: 12px; left: calc(50% + 12px); right: calc(-50% + 12px); }
+      .result-bar { align-items: flex-start; flex-direction: column; }
+      .result-actions { width: 100%; }
+      .result-actions button { flex: 1; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">A2</div>
+        <div>
+          <h1>audio2pdf</h1>
+          <p>音视频转写 · 结构化笔记 · LaTeX PDF</p>
+        </div>
+      </div>
+      <div id="status" class="status" role="status" aria-live="polite">就绪</div>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="tool-panel" aria-labelledby="taskTitle">
+      <div class="panel-head">
+        <div>
+          <h2 id="taskTitle">新建转写任务</h2>
+          <small>本机处理</small>
+        </div>
+      </div>
+
+      <div class="form-body">
+        <div class="field">
+          <label for="inputFile">音视频文件</label>
+          <div class="path-row">
+            <input id="inputFile" autocomplete="off" placeholder="请选择音频或视频">
+            <button type="button" class="secondary" onclick="browseFile()">浏览</button>
+          </div>
+          <div class="file-strip" aria-live="polite">
+            <div id="fileType" class="file-type">MEDIA</div>
+            <div>
+              <div id="fileName" class="file-name">尚未选择文件</div>
+              <div id="filePath" class="file-path">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="title">PDF 标题</label>
+          <input id="title" autocomplete="off" placeholder="默认使用文件名">
+        </div>
+
+        <details>
+          <summary>高级设置</summary>
+          <div class="advanced-body">
+            <div class="field">
+              <label for="configPath">配置文件</label>
+              <div class="path-row">
+                <input id="configPath" autocomplete="off">
+                <button type="button" class="secondary" onclick="browseConfig()">浏览</button>
+              </div>
+            </div>
+            <div class="field">
+              <label for="outputDir">输出文件夹</label>
+              <div class="path-row">
+                <input id="outputDir" autocomplete="off">
+                <button type="button" class="secondary" onclick="browseFolder()">浏览</button>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <div class="form-actions">
+          <button type="button" class="secondary" onclick="checkSetup()">检查配置</button>
+          <button type="button" id="runBtn" class="primary" onclick="startRun()">开始生成 PDF</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="progress-panel" aria-labelledby="progressTitle">
+      <div class="panel-head">
+        <div>
+          <h2 id="progressTitle">处理进度</h2>
+          <small id="progressMeta">等待任务</small>
+        </div>
+        <button type="button" class="secondary small-button" onclick="clearLog()">清空日志</button>
+      </div>
+
+      <div class="steps" aria-label="处理步骤">
+        <div class="step" data-step="1"><div class="step-index">1</div><span>音频处理</span></div>
+        <div class="step" data-step="2"><div class="step-index">2</div><span>语音转写</span></div>
+        <div class="step" data-step="3"><div class="step-index">3</div><span>文本纠错</span></div>
+        <div class="step" data-step="4"><div class="step-index">4</div><span>笔记整理</span></div>
+        <div class="step" data-step="5"><div class="step-index">5</div><span>PDF 编译</span></div>
+      </div>
+
+      <div class="log-wrap">
+        <pre id="log" aria-live="polite"></pre>
+      </div>
+
+      <div id="resultBar" class="result-bar">
+        <div class="result-label">
+          <div class="result-mark">PDF</div>
+          <div>
+            <strong id="resultName">尚未生成</strong>
+            <span id="resultHint">完成后可直接打开</span>
+          </div>
+        </div>
+        <div class="result-actions">
+          <button type="button" id="openPdfBtn" class="secondary small-button" onclick="openPath(lastPdf)" disabled>打开 PDF</button>
+          <button type="button" id="openFolderBtn" class="secondary small-button" onclick="openPath(lastFolder)" disabled>打开文件夹</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const projectDir = "__PROJECT_DIR__";
+    const inputFile = document.getElementById("inputFile");
+    const titleInput = document.getElementById("title");
+    const configPath = document.getElementById("configPath");
+    const outputDir = document.getElementById("outputDir");
+    const statusNode = document.getElementById("status");
+    const progressMeta = document.getElementById("progressMeta");
+    const logBox = document.getElementById("log");
+    const runBtn = document.getElementById("runBtn");
+    const openPdfBtn = document.getElementById("openPdfBtn");
+    const openFolderBtn = document.getElementById("openFolderBtn");
+    const resultBar = document.getElementById("resultBar");
+    const steps = Array.from(document.querySelectorAll(".step"));
+
+    let currentRun = null;
+    let pollTimer = null;
+    let logCursor = 0;
+    let lastPdf = "";
+    let lastFolder = "";
+
+    configPath.value = localStorage.getItem("audio2pdf.config") || projectDir + "\\config.yaml";
+    outputDir.value = localStorage.getItem("audio2pdf.output") || projectDir + "\\output";
+
+    function setStatus(text, state = "") {
+      statusNode.textContent = text;
+      statusNode.className = "status" + (state ? " " + state : "");
+    }
+
+    function setStage(stage, complete = false) {
+      steps.forEach((node, index) => {
+        const number = index + 1;
+        node.classList.toggle("done", complete || number < stage);
+        node.classList.toggle("active", !complete && number === stage);
+        node.querySelector(".step-index").textContent = (complete || number < stage) ? "✓" : String(number);
+      });
+    }
+
+    function inferStage(message) {
+      const match = message.match(/Step\s+([1-5])\/5/i);
+      if (match) setStage(Number(match[1]));
+      if (message.includes("Finished. PDF:")) setStage(5, true);
+    }
+
+    function appendLog(text) {
+      if (!text) return;
+      logBox.textContent += text + "\n";
+      inferStage(text);
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    function clearLog() {
+      logBox.textContent = "";
+      logCursor = 0;
+    }
+
+    function updateFileDisplay(path) {
+      const clean = (path || "").trim();
+      const name = clean.split(/[\\/]/).pop() || "尚未选择文件";
+      const ext = (name.includes(".") ? name.split(".").pop() : "media").slice(0, 5).toUpperCase();
+      document.getElementById("fileType").textContent = ext;
+      document.getElementById("fileName").textContent = name;
+      document.getElementById("filePath").textContent = clean || "—";
+      document.getElementById("filePath").title = clean;
+    }
+
+    inputFile.addEventListener("change", () => updateFileDisplay(inputFile.value));
+    configPath.addEventListener("change", () => localStorage.setItem("audio2pdf.config", configPath.value));
+    outputDir.addEventListener("change", () => localStorage.setItem("audio2pdf.output", outputDir.value));
+
+    async function postJson(url, data) {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(data || {})
+      });
+      const payload = await response.json();
+      if (!response.ok || payload.ok === false) throw new Error(payload.error || "请求失败");
+      return payload;
+    }
+
+    async function getJson(url) {
+      const response = await fetch(url);
+      const payload = await response.json();
+      if (!response.ok || payload.ok === false) throw new Error(payload.error || "请求失败");
+      return payload;
+    }
+
+    async function browseFile() {
+      try {
+        const payload = await getJson("/api/browse-file");
+        if (!payload.path) return;
+        inputFile.value = payload.path;
+        updateFileDisplay(payload.path);
+        if (!titleInput.value.trim()) {
+          const name = payload.path.split(/[\\/]/).pop() || "";
+          titleInput.value = name.replace(/\.[^.]+$/, "");
+        }
+      } catch (error) {
+        appendLog("选择文件失败：" + error.message);
+        setStatus("选择失败", "err");
+      }
+    }
+
+    async function browseConfig() {
+      try {
+        const payload = await getJson("/api/browse-config");
+        if (payload.path) {
+          configPath.value = payload.path;
+          localStorage.setItem("audio2pdf.config", payload.path);
+        }
+      } catch (error) { appendLog("选择配置失败：" + error.message); }
+    }
+
+    async function browseFolder() {
+      try {
+        const payload = await getJson("/api/browse-folder");
+        if (payload.path) {
+          outputDir.value = payload.path;
+          localStorage.setItem("audio2pdf.output", payload.path);
+        }
+      } catch (error) { appendLog("选择文件夹失败：" + error.message); }
+    }
+
+    async function checkSetup() {
+      setStatus("检查中", "running");
+      progressMeta.textContent = "正在检查本机环境";
+      try {
+        const payload = await postJson("/api/check", {
+          config_path: configPath.value.trim(),
+          require_api_keys: true
+        });
+        payload.messages.forEach(line => appendLog("[OK] " + line));
+        setStatus("配置正常", "ok");
+        progressMeta.textContent = "可以开始生成";
+      } catch (error) {
+        appendLog("配置检查失败：" + error.message);
+        setStatus("检查失败", "err");
+        progressMeta.textContent = "请查看日志";
+      }
+    }
+
+    async function startRun() {
+      const source = inputFile.value.trim();
+      if (!source) {
+        appendLog("请先选择音视频文件。");
+        setStatus("缺少文件", "err");
+        inputFile.focus();
+        return;
+      }
+
+      if (pollTimer) clearTimeout(pollTimer);
+      clearLog();
+      setStage(1);
+      setStatus("处理中", "running");
+      progressMeta.textContent = "任务已提交";
+      runBtn.disabled = true;
+      openPdfBtn.disabled = true;
+      openFolderBtn.disabled = true;
+      resultBar.classList.remove("ready");
+      document.getElementById("resultName").textContent = "正在生成";
+      document.getElementById("resultHint").textContent = "请保持此窗口打开";
+      lastPdf = "";
+      lastFolder = "";
+
+      try {
+        const payload = await postJson("/api/run", {
+          input_file: source,
+          title: titleInput.value.trim(),
+          config_path: configPath.value.trim(),
+          output_dir: outputDir.value.trim()
+        });
+        currentRun = payload.run_id;
+        pollStatus();
+      } catch (error) {
+        appendLog("启动失败：" + error.message);
+        setStatus("启动失败", "err");
+        progressMeta.textContent = "请查看日志";
+        runBtn.disabled = false;
+      }
+    }
+
+    async function pollStatus() {
+      if (!currentRun) return;
+      try {
+        const payload = await getJson("/api/status?run_id=" + encodeURIComponent(currentRun));
+        const logs = payload.logs || [];
+        logs.slice(logCursor).forEach(appendLog);
+        logCursor = logs.length;
+
+        if (payload.state === "done") {
+          setStage(5, true);
+          setStatus("已完成", "ok");
+          progressMeta.textContent = "PDF 已生成";
+          runBtn.disabled = false;
+          lastPdf = payload.result.pdf_path;
+          lastFolder = payload.result.output_dir;
+          openPdfBtn.disabled = false;
+          openFolderBtn.disabled = false;
+          resultBar.classList.add("ready");
+          document.getElementById("resultName").textContent = lastPdf.split(/[\\/]/).pop();
+          document.getElementById("resultHint").textContent = "生成完成";
+          return;
+        }
+
+        if (payload.state === "error") {
+          setStatus("处理失败", "err");
+          progressMeta.textContent = "请查看日志";
+          runBtn.disabled = false;
+          document.getElementById("resultName").textContent = "生成失败";
+          document.getElementById("resultHint").textContent = payload.error || "未知错误";
+          return;
+        }
+
+        progressMeta.textContent = "后台处理中";
+        pollTimer = setTimeout(pollStatus, 900);
+      } catch (error) {
+        appendLog("状态读取失败：" + error.message);
+        setStatus("连接异常", "err");
+        runBtn.disabled = false;
+      }
+    }
+
+    async function openPath(path) {
+      if (!path) return;
+      try { await postJson("/api/open", {path}); }
+      catch (error) { appendLog("打开失败：" + error.message); }
+    }
+
+    setStage(0);
+    updateFileDisplay("");
+  </script>
+</body>
+</html>

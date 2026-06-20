@@ -1,0 +1,58 @@
+# ============================================
+# audio2pdf config
+# Copy this file to config.yaml, then configure API keys.
+# Recommended on Windows: keep api_key blank and set environment variables.
+# ============================================
+
+transcription:
+  # Use Groq first because it is cheap, fast, and OpenAI-compatible.
+  backend: groq  # groq | siliconflow
+
+  # "zh" is best for Chinese recordings. Use "en" for English or "auto" to omit the language hint.
+  language: zh
+
+  groq:
+    api_key: ""
+    api_key_env: "GROQ_API_KEY"
+    model: "whisper-large-v3-turbo"
+    base_url: "https://api.groq.com/openai/v1"
+
+  siliconflow:
+    api_key: ""
+    api_key_env: "SILICONFLOW_API_KEY"
+    model: "FunAudioLLM/SenseVoiceSmall"
+    base_url: "https://api.siliconflow.cn/v1"
+
+  # Chunking keeps uploads under provider file-size limits and makes retries cheaper.
+  chunk_minutes: 10
+  chunk_overlap_seconds: 3
+  max_retries: 3
+  timeout_seconds: 120
+
+deepseek:
+  api_key: ""
+  api_key_env: "DEEPSEEK_API_KEY"
+  base_url: "https://api.deepseek.com"
+  model: "deepseek-v4-flash"
+  max_tokens: 8000
+  temperature: 0.2
+  max_retries: 6
+  timeout_seconds: 240
+  retry_base_seconds: 8
+  retry_max_seconds: 90
+  # "none" ignores system HTTP(S)_PROXY for DeepSeek. Use "system" if your network requires a proxy.
+  proxy_mode: "none"
+
+latex:
+  engine: "xelatex"
+  # Portable across TeX Live installations; no Windows font dependency.
+  fontset: "fandol"
+
+document:
+  include_notes: true
+  include_transcript: true
+
+output:
+  dir: "./output"
+  keep_intermediate: true
+  resume_previous: true
