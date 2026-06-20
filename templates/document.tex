@@ -1,0 +1,158 @@
+% ============================================================
+% audio2pdf stable Chinese document template
+% Engine: XeLaTeX (run twice for the table of contents)
+% Placeholders are replaced by src/generate_pdf.py.
+% ============================================================
+\documentclass[UTF8,11pt,a4paper,fontset=fandol]{ctexart}
+
+\usepackage[a4paper,top=24mm,bottom=24mm,left=25mm,right=25mm,
+            headheight=24pt,headsep=8mm,footskip=13mm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{array,booktabs,longtable,tabularx}
+\usepackage{enumitem}
+\usepackage[most]{tcolorbox}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{microtype}
+\usepackage{needspace}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{hyperref}
+\usepackage{bookmark}
+
+% Academic palette adapted from the supplied lecture-note reference.
+\definecolor{ink}{HTML}{172235}
+\definecolor{muted}{HTML}{667085}
+\definecolor{paper}{HTML}{F7F8FA}
+\definecolor{line}{HTML}{D8DEE8}
+\definecolor{teal}{HTML}{176B70}
+\definecolor{teallight}{HTML}{EAF5F4}
+\definecolor{gold}{HTML}{B9822E}
+\definecolor{goldlight}{HTML}{FBF3E5}
+\definecolor{red}{HTML}{A94646}
+\definecolor{redlight}{HTML}{FBEDED}
+\color{ink}
+
+% Reading rhythm and stable list/table dimensions.
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0.35em}
+\linespread{1.22}
+\setlist{leftmargin=2.2em,itemsep=0.25em,topsep=0.35em,parsep=0pt}
+\setlist[itemize]{label=\textcolor{teal}{\small\textbullet}}
+\renewcommand{\arraystretch}{1.3}
+\setlength{\tabcolsep}{5pt}
+\setlength{\LTleft}{0pt}
+\setlength{\LTright}{0pt}
+\emergencystretch=2em
+
+% Section hierarchy. Needspace prevents orphan headings at page bottoms.
+\titleformat{\section}[hang]
+  {\Needspace{5\baselineskip}\Large\bfseries\color{ink}}
+  {\colorbox{teal}{\textcolor{white}{\strut\thesection}}}
+  {0.8em}{}
+\titleformat{\subsection}[hang]
+  {\Needspace{3\baselineskip}\large\bfseries\color{teal}}
+  {\thesubsection}{0.7em}{}
+\titleformat{\subsubsection}[hang]
+  {\Needspace{2\baselineskip}\normalsize\bfseries\color{ink}}
+  {\thesubsubsection}{0.6em}{}
+\titlespacing*{\section}{0pt}{2.1em}{0.9em}
+\titlespacing*{\subsection}{0pt}{1.45em}{0.5em}
+\titlespacing*{\subsubsection}{0pt}{1.1em}{0.35em}
+
+% Header/footer intentionally use a short fixed label so long user titles
+% cannot overflow. The full title remains on the cover and in PDF metadata.
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{muted}audio2pdf · 智能转写文档}
+\fancyhead[R]{\small\color{muted}\nouppercase{\leftmark}}
+\fancyfoot[L]{\small\color{muted}音视频转写与结构化整理}
+\fancyfoot[R]{\small\color{muted}\thepage\ / \pageref*{LastPage}}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{line}\leaders\hrule height \headrulewidth\hfill}}
+\renewcommand{\sectionmark}[1]{\markboth{#1}{}}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=teal,
+  urlcolor=teal,
+  citecolor=teal,
+  pdftitle={__TITLE__},
+  pdfauthor={audio2pdf},
+  bookmarksnumbered=true,
+  pdfstartview=FitH
+}
+
+% Reusable boxes are breakable: long notes and ten-minute transcript chunks
+% may continue across pages without causing compilation or layout failures.
+\tcbset{
+  lecturebox/.style={
+    enhanced,breakable,sharp corners,boxrule=0.5pt,
+    left=4mm,right=4mm,top=2.8mm,bottom=3mm,
+    before skip=10pt,after skip=10pt,
+    fonttitle=\bfseries,coltitle=ink,
+    attach boxed title to top left={xshift=3mm,yshift=-2mm},
+    boxed title style={sharp corners,boxrule=0pt,left=1.5mm,right=1.5mm}
+  }
+}
+\newtcolorbox{summarybox}{lecturebox,colback=teallight,colframe=teal!55,
+  borderline west={2.5pt}{0pt}{teal},title=文档说明,
+  boxed title style={colback=teallight}}
+\newtcolorbox{notebox}{lecturebox,colback=paper,colframe=line,
+  borderline west={2.5pt}{0pt}{muted},title=补充说明,
+  boxed title style={colback=paper}}
+\newtcolorbox{transcriptblock}[1]{lecturebox,colback=white,colframe=line,
+  borderline west={2.5pt}{0pt}{teal},title={#1},
+  boxed title style={colback=teallight}}
+
+\begin{document}
+
+% Cover page.
+\begin{titlepage}
+\thispagestyle{empty}
+\begin{tikzpicture}[remember picture,overlay]
+  \fill[ink] (current page.north west) rectangle ([yshift=-3.05cm]current page.north east);
+  \fill[teal] ([xshift=17mm,yshift=-3.05cm]current page.north west)
+              rectangle ([xshift=21mm,yshift=-8.7cm]current page.north west);
+  \fill[gold] (current page.south west) rectangle ([yshift=4mm]current page.south east);
+\end{tikzpicture}
+
+\vspace*{10mm}
+{\color{white}\small\bfseries AUDIO2PDF · TRANSCRIPT NOTE\par}
+\vspace{31mm}
+
+\begin{flushleft}
+\hspace*{13mm}\begin{minipage}{0.76\textwidth}
+  {\Huge\bfseries\color{ink}\raggedright __TITLE__\par}
+  \vspace{8mm}
+  {\Large\bfseries\color{teal}音视频转写与结构化整理\par}
+  \vspace{10mm}
+  {\normalsize\color{muted}含整理笔记、时间轴分段与原文转写}\par
+\end{minipage}
+\end{flushleft}
+
+\vfill
+\begin{flushleft}
+\hspace*{13mm}\begin{minipage}{0.78\textwidth}
+  \small
+  \textbf{生成日期}\quad __DATE__
+
+  \vspace{7mm}
+  \color{muted}
+  本文档由音视频自动转写生成。整理笔记用于快速复习，带时间标记的原文部分用于回到录音定位核对。
+\end{minipage}
+\end{flushleft}
+\vspace{12mm}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\begin{summarybox}
+整理笔记由语言模型根据纠错稿生成；原文转写按音频切片的起止时间分段。自动转写可能存在专业术语误识别，涉及关键数据时请结合原始录音复核。
+\end{summarybox}
+
+__DOCUMENT_BODY__
+
+\end{document}

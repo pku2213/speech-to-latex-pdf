@@ -1,138 +1,135 @@
-# speech-to-latex-pdf
+# audio2pdf
 
-将音频/视频录音通过 Whisper 语音转文字，经 Claude 审校修正后，输出 LaTeX 编译的中文 PDF 转录文档。
+把本地音频或视频转换成带时间轴的中文 PDF：Groq Whisper 负责转写，DeepSeek 负责逐字稿纠错和结构化整理，XeLaTeX 负责编译。
+
+![audio2pdf 本地界面](docs/ui-preview.png)
+
+## 功能
+
+- 音频与视频输入：`mp3`、`wav`、`m4a`、`flac`、`mp4`、`mov`、`mkv` 等
+- Groq `whisper-large-v3-turbo` 分片转写，长视频可断点续跑
+- DeepSeek 分片纠错、缓存和自动重试
+- 原文按真实音频切片时间分段，显示 `HH:MM:SS - HH:MM:SS`
+- 稳定中文模板：`ctexart + Fandol + XeLaTeX`
+- 输出整理笔记、原文逐字稿、`.tex`、运行日志和最终 PDF
+- Windows 本地浏览器界面与命令行两种入口
 
 ## 快速开始
 
-在 Claude Code 中直接说：
+### 1. 安装环境
 
-```
-帮我把这个录音转成 PDF：C:\录音\会议.m4a
-```
+需要 Python 3.10+、FFmpeg（含 `ffprobe`）和 TeX Live（含 `xelatex`）。
 
-技能自动执行完整流程：**提取音频 → Whisper 转录 → Claude 审校 → LaTeX 编译 → PDF 输出**
-
-## 工作流
-
-```
-音频/视频 (.m4a/.mp3/.mp4/...)
-  │
-  ├─ [1] extract_audio.py    → ffmpeg 提取音频 → 16kHz mono WAV
-  ├─ [2] transcribe.py       → Whisper 语音转文字 → JSON（含时间戳）
-  ├─ [3] Claude 审查         → 修正同音字/术语/标点（严格保留原意）
-  ├─ [4] 填充 LaTeX 模板     → 转义特殊字符 → .tex 文件
-  └─ [5] compile_latex.py    → xelatex 编译 → PDF
+```powershell
+python -m pip install -r requirements.txt
 ```
 
-## 依赖
+### 2. 配置 API 密钥
 
-| 组件 | 用途 | 安装 |
-|------|------|------|
-| Python 3.10+ | 脚本运行 | — |
-| openai-whisper | 本地语音转文字 | `pip install openai-whisper` |
-| openai (SDK) | API 备选转录 | `pip install openai` |
-| ffmpeg | 音频提取/转换 | `choco install ffmpeg` (Windows) |
-| TeX Live (含 xelatex) | PDF 编译 | [tug.org/texlive](https://tug.org/texlive/) |
+不要把密钥写进仓库。Windows 下可写入用户环境变量：
 
-## 目录结构
-
-```
-speech-to-latex-pdf/
-├── SKILL.md                    # 技能定义（frontmatter + 工作流指令）
-├── LICENSE.txt                 # 许可
-├── README.md                   # 本文件
-├── scripts/
-│   ├── extract_audio.py        # ffmpeg 封装：媒体 → 16kHz mono WAV
-│   ├── transcribe.py           # Whisper 封装：local为主 + API备选
-│   └── compile_latex.py        # xelatex 封装：.tex → PDF
-└── templates/
-    └── transcription.tex       # 中文 LaTeX 模板（ctexart + xeCJK）
+```powershell
+setx GROQ_API_KEY "你的 Groq API Key"
+setx DEEPSEEK_API_KEY "你的 DeepSeek API Key"
 ```
 
-## 功能特性
+`setx` 只对之后启动的进程生效。本项目也会从 Windows 用户环境变量注册表读取刚写入的值，因此配置检查无需重启电脑。
 
-- **本地优先**：默认使用本地 Whisper，离线可用，隐私安全
-- **API 备选**：`--use-api` 切换 OpenAI Whisper API（更高精度）
-- **模型降级**：OOM 时自动降级 medium → small → base → tiny
-- **中文原生支持**：ctexart + xeCJK，宋体/微软雅黑/仿宋
-- **严格逐字转录**：不总结、不省略、不改写原意
-- **专业排版**：封面页 + 自动目录 + 蓝色标题 + 时间戳标记
-- **附录支持**：可为专业技术录音添加术语对照表
-- **特殊字符自动转义**：`& % $ # _ { } ~ ^ \`
+### 3. 一键打开
 
-## 脚本用法
+双击：
 
-### extract_audio.py
-
-```bash
-python scripts/extract_audio.py <input> [-o output.wav] [--sample-rate 16000]
+```text
+start_audio2pdf_page.bat
 ```
 
-从视频/音频文件中提取音频，转换为 16kHz 单声道 PCM WAV。
+页面只监听 `127.0.0.1`，音视频路径和处理过程不会暴露为公网服务。
 
-### transcribe.py
+## 命令行
 
-```bash
-python scripts/transcribe.py <audio.wav> [-m medium] [-l zh] [--use-api] [-o output.json]
+检查本机工具与密钥：
+
+```powershell
+python main.py --check --require-api-keys
 ```
 
-使用 Whisper 将音频转录为 JSON 格式文本。`-m` 可选模型：turbo/large/medium/small/base/tiny。
+生成 PDF：
 
-### compile_latex.py
-
-```bash
-python scripts/compile_latex.py <file.tex> [-o output.pdf] [--passes 2]
+```powershell
+python main.py "D:\recordings\lecture.mp4" --title "课程讲稿"
 ```
 
-使用 xelatex 编译 .tex 文件为 PDF。编译失败时自动解析 .log 提取错误信息。
+从失败的工作目录继续：
 
-## 技术说明
+```powershell
+python main.py "D:\recordings\lecture.mp4" `
+  --resume-work-dir ".\output\_work_lecture_20260620-120000"
+```
 
-### 中文 LaTeX 方案
+默认会自动查找同名输入的最近工作目录，复用转写结果和 DeepSeek 分片缓存。使用 `--no-resume` 可强制新建任务。
 
-模板使用 `ctexart` 文档类 + `xeCJK` 宏包，通过 xelatex 引擎编译，原生支持 CJK 字符。
+## 输出结构
 
-**页面结构**：
-- **封面**：含标题、元数据表（源文件/语言/模型/时长）、整理说明
-- **目录**：`\tableofcontents` 自动生成，`\section{}` 标题自动入目录
-- **正文**：蓝色 section/subsection 标题，`\timestamp{MM:SS}` 时间标记
-- **附录**：可选术语对照表（使用 `longtable` 支持跨页）
-- **页眉页脚**：左侧显示文档标题，右侧 "转录文档"，页脚仅页码
+```text
+output/
+├── lecture.pdf
+└── _work_lecture_YYYYMMDD-HHMMSS/
+    ├── raw_transcript.json
+    ├── raw_transcript.txt
+    ├── timestamped_transcript.txt
+    ├── corrected_transcript.txt
+    ├── organized_notes.md
+    ├── deepseek_cache/
+    ├── lecture.tex
+    ├── lecture.log
+    └── pipeline.log
+```
 
-默认字体（Windows 11）：
-- 正文：宋体 (SimSun)
-- 标题：微软雅黑 (Microsoft YaHei) — 蓝色渲染
-- 等宽：仿宋 (FangSong)
-- 拉丁：Times New Roman / Arial / Consolas
+`raw_transcript.json` 保存每个音频片段的真实起止秒数；PDF 原文部分直接使用这些时间，不由模型推测。
 
-### Whisper 模型选择
+## 配置
 
-| 模型 | 大小 | 速度(CPU) | 中文精度 |
-|------|------|-----------|----------|
-| tiny | ~75MB | ~8x 实时 | 低 |
-| base | ~140MB | ~4x 实时 | 中 |
-| small | ~460MB | ~2x 实时 | 较高 |
-| medium | ~1.5GB | ~1x 实时 | 高 |
-| large | ~2.9GB | ~0.5x 实时 | 最高 |
+复制 `config.example.yaml` 为 `config.yaml` 后按需修改：
 
-对于中文技术类录音（如 AFM 操作培训），建议至少使用 medium 模型。日常对话可使用 small。
+- `transcription.chunk_minutes`：上传分片时长，默认 10 分钟
+- `transcription.chunk_overlap_seconds`：相邻分片重叠，默认 3 秒
+- `deepseek.proxy_mode`：`none` 忽略系统代理，`system` 使用系统代理
+- `document.include_notes`：是否输出整理笔记
+- `document.include_transcript`：是否输出带时间轴原文
+- `output.resume_previous`：是否自动断点续跑
 
-### 常见问题
+模板固定使用 TeX Live 自带的 Fandol 中文字体，避免依赖微软雅黑、宋体等系统字体导致乱码或无法编译。
 
-**Q: 转录结果有很多错别字？**
-A: 尝试更大的 Whisper 模型（`-m medium` 或 `-m large`），或使用 `--use-api` 调用 OpenAI API。
+## 项目结构
 
-**Q: PDF 编译失败？**
-A: 通常是 .tex 中的特殊字符未正确转义。检查 `--keep-aux` 保留 .log 文件查看具体错误。
+```text
+audio2pdf/
+├── main.py                  # 命令行入口
+├── web_app.py               # 本地浏览器服务
+├── start_audio2pdf_page.bat # Windows 一键入口
+├── web/index.html           # 本地界面
+├── src/
+│   ├── pipeline.py
+│   ├── audio_prep.py
+│   ├── transcribe.py
+│   ├── correct_and_organize.py
+│   └── generate_pdf.py
+├── templates/document.tex
+├── tools/self_test_pdf.py
+└── tests/
+```
 
-**Q: 提示模型不支持此 torch 版本？**
-A: `openai-whisper` 与较新的 torch 版本可能存在兼容性问题。尝试 `--use-api` 绕过。
+## 验证
 
-## 许可
+```powershell
+python -m unittest discover -s tests -v
+python tools/self_test_pdf.py
+```
 
-本技能为 Proprietary 软件。详见 [LICENSE.txt](LICENSE.txt)。
+PDF 自测会生成中文、特殊字符、目录和时间分段，用于检查 XeLaTeX 与字体环境。
 
-第三方组件：
-- openai-whisper: MIT License
-- FFmpeg: LGPL/GPL
-- TeX Live: 各组件遵循其自由软件许可
+## 安全
+
+- `config.yaml`、`.env`、`output/` 和中间音频均由 `.gitignore` 排除。
+- 本地页面不提供公网监听选项。
+- 日志只显示密钥是否存在，不输出密钥内容。
