@@ -2,8 +2,8 @@
 Shared audio2pdf pipeline.
 
 This module is the single execution path used by both the command line entry
-point and the Tkinter GUI. It validates the local toolchain, resolves API keys,
-keeps a run log, and returns all important output paths to the caller.
+point and the local browser interface. It validates the local toolchain,
+resolves API keys, keeps a run log, and returns all important output paths.
 """
 from __future__ import annotations
 
@@ -277,7 +277,7 @@ def _find_previous_work_dir(output_dir: Path, stem: str) -> Path | None:
 
 
 def _emit(message: str, callback: ProgressCallback | None, log_path: Path | None) -> None:
-    """Send progress to stdout/GUI and append to the run log."""
+    """Send progress to stdout/UI and append to the run log."""
     line = str(message)
     if callback:
         callback(line)

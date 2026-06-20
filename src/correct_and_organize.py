@@ -16,7 +16,7 @@ from typing import Callable
 
 
 class DeepSeekError(RuntimeError):
-    """User-facing API failure that CLI and GUI can report without a traceback."""
+    """User-facing API failure that interfaces can report without a traceback."""
 
     pass
 
